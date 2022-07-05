@@ -11,8 +11,8 @@ class SimpleTrainPreProcessor:
     collection_file: str
     tokenizer: PreTrainedTokenizer
 
-    max_length: int = 128
-    columns = ['text_id', 'title', 'text']
+    max_length: int = 512
+    columns = ['text_id', 'text']
     title_field = 'title'
     text_field = 'text'
 
@@ -61,7 +61,7 @@ class SimpleTrainPreProcessor:
         title = entry[self.title_field]
         title = "" if title is None else title
         body = entry[self.text_field]
-        content = title + self.tokenizer.sep_token + body
+        content = body
 
         passage_encoded = self.tokenizer.encode(
             content,
@@ -87,7 +87,7 @@ class SimpleTrainPreProcessor:
 class SimpleCollectionPreProcessor:
     tokenizer: PreTrainedTokenizer
     separator: str = '\t'
-    max_length: int = 128
+    max_length: int = 512
 
     def process_line(self, line: str):
         xx = line.strip().split(self.separator)

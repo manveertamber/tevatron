@@ -54,7 +54,7 @@ class DataArguments:
     )
     passage_field_separator: str = field(default=' ')
     dataset_proc_num: int = field(
-        default=12, metadata={"help": "number of proc used in dataset preprocess"}
+        default=92, metadata={"help": "number of proc used in dataset preprocess"}
     )
     train_n_passages: int = field(default=8)
     positive_passage_no_shuffle: bool = field(

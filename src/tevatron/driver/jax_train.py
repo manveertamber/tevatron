@@ -90,18 +90,16 @@ def main():
     else:
         data_files = None
 
-    train_dataset = \
-        datasets.load_dataset(data_args.dataset_name, data_args.dataset_language, cache_dir=model_args.cache_dir,
-                              data_files=data_files)[data_args.dataset_split]
+    train_dataset = datasets.load_dataset("json", data_files=data_args.dataset_name, cache_dir=model_args.cache_dir)['train']
 
     def tokenize_train(example):
         tokenize = partial(tokenizer, return_attention_mask=False, return_token_type_ids=False, padding=False,
                            truncation=True)
         query = example['query']
-        pos_psgs = [p['title'] + " " + p['text'] for p in example['positive_passages']]
-        neg_psgs = [p['title'] + " " + p['text'] for p in example['negative_passages']]
+        pos_psgs = [p['text'] for p in example['positive_passages']]
+        neg_psgs = [p['text'] for p in example['negative_passages']]
 
-        example['query_input_ids'] = dict(tokenize(query, max_length=32))
+        example['query_input_ids'] = dict(tokenize(query, max_length=data_args.q_max_len))
         example['pos_psgs_input_ids'] = [dict(tokenize(x, max_length=data_args.p_max_len)) for x in pos_psgs]
         example['neg_psgs_input_ids'] = [dict(tokenize(x, max_length=data_args.p_max_len)) for x in neg_psgs]
 
@@ -132,7 +130,7 @@ def main():
             q = example['query_input_ids']
 
             pp = example['pos_psgs_input_ids']
-            p = pp[0]
+            p = pp[(hash(42) + epoch) % len(pp)]
 
             nn = example['neg_psgs_input_ids']
             off = epoch * (self.group_size - 1) % len(nn)
@@ -144,7 +142,7 @@ def main():
         def get_batch(self, indices, epoch):
             qq, dd = zip(*[self.get_example(i, epoch) for i in map(int, indices)])
             dd = sum(dd, [])
-            return dict(tokenizer.pad(qq, max_length=32, padding='max_length', return_tensors='np')), dict(
+            return dict(tokenizer.pad(qq, max_length=data_args.q_max_len, padding='max_length', return_tensors='np')), dict(
                 tokenizer.pad(dd, max_length=data_args.p_max_len, padding='max_length', return_tensors='np'))
 
     train_dataset = TrainDataset(train_data, data_args.train_n_passages, tokenizer)
