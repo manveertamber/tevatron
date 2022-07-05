@@ -15,7 +15,7 @@ python -m torch.distributed.launch --nproc_per_node=4 -m tevatron.driver.train \
   --train_n_passages 2 \
   --learning_rate 1e-5 \
   --q_max_len 32 \
-  --p_max_len 156 \
+  --p_max_len 256 \
   --num_train_epochs 40 \
   --logging_steps 500 \
   --negatives_x_device \
@@ -38,7 +38,7 @@ CUDA_VISIBLE_DEVICES=0 python -m tevatron.driver.train \
   --train_n_passages 2 \
   --learning_rate 1e-5 \
   --q_max_len 32 \
-  --p_max_len 156 \
+  --p_max_len 256 \
   --num_train_epochs 40 \
   --logging_steps 500 \
   --grad_cache \
@@ -60,7 +60,7 @@ python -m tevatron.driver.encode \
   --output_dir=temp \
   --model_name_or_path model_nq \
   --fp16 \
-  --per_device_eval_batch_size 156 \
+  --per_device_eval_batch_size 256 \
   --dataset_name Tevatron/wikipedia-nq-corpus \
   --encoded_save_path corpus_emb.$s.pkl \
   --encode_num_shard 20 \
@@ -74,7 +74,7 @@ python -m tevatron.driver.encode \
   --output_dir=temp \
   --model_name_or_path model_nq \
   --fp16 \
-  --per_device_eval_batch_size 156 \
+  --per_device_eval_batch_size 256 \
   --dataset_name Tevatron/wikipedia-nq/test \
   --encoded_save_path query_emb.pkl \
   --encode_is_qry
