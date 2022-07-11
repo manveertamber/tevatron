@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from functools import partial
+import random
 
 import datasets
 import jax
@@ -133,9 +134,10 @@ def main():
             p = pp[(hash(42) + epoch) % len(pp)]
 
             nn = example['neg_psgs_input_ids']
-            off = epoch * (self.group_size - 1) % len(nn)
+            off = epoch * 1 % len(nn)
+            random.Random(hash(42)).shuffle(nn)
             nn = nn * 2
-            nn = nn[off: off + self.group_size - 1]
+            nn = nn[off: off + 1]
 
             return q, [p] + nn
 
