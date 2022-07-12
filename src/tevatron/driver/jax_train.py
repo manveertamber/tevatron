@@ -277,14 +277,15 @@ def main():
                     f" Learning Rate: {linear_decay_lr_schedule_fn(cur_step)})",
                     flush=True,
                 )
-                if loss < lowest_loss and epoch > 10:
-                    lowest_loss = loss
+                if train_metrics['loss'].mean() < lowest_loss and epoch > 5:
+                    lowest_loss = train_metrics['loss'].mean()
                     if model_args.untie_encoder:
                         os.makedirs(training_args.output_dir, exist_ok=True)
                         model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best' ), params=params.q_params)
                         model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'), params=params.p_params)
                         with open(str(training_args.output_dir) + "/best_epoch.txt") as f:
                             f.write(str(epoch))
+                        tokenizer.save_pretrained(training_args.output_dir)
                 train_metrics = []
 
         epochs.write(
