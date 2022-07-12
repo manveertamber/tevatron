@@ -281,8 +281,8 @@ def main():
                     lowest_loss = train_metrics['loss'].mean()
                     if model_args.untie_encoder:
                         os.makedirs(training_args.output_dir, exist_ok=True)
-                        model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best' ), params=params.q_params)
-                        model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'), params=params.p_params)
+                        model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best' ), params=jax_utils.unreplicate(state.params).q_params)
+                        model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'), params=jax_utils.unreplicate(state.params).p_params)
                         with open(str(training_args.output_dir) + "/best_epoch.txt", "w") as f:
                             f.write(str(epoch))
                         tokenizer.save_pretrained(training_args.output_dir)
