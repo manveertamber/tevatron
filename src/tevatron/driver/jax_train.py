@@ -135,10 +135,10 @@ def main():
             p = pp[(hash(42) + epoch) % len(pp)]
 
             nn = example['neg_psgs_input_ids']
-            off = epoch * 1 % len(nn)
+            off = epoch * (self.group_size - 1) % len(nn)
             random.Random(hash(42)).shuffle(nn)
             nn = nn * 2
-            nn = nn[off: off + 1]
+            nn = nn[off: off + self.group_size - 1]
 
             return q, [p] + nn
 
@@ -285,7 +285,15 @@ def main():
                         model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'), params=jax_utils.unreplicate(state.params).p_params)
                         with open(str(training_args.output_dir) + "/best_epoch.txt", "w") as f:
                             f.write(str(epoch))
-                        tokenizer.save_pretrained(training_args.output_dir)
+                        tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best'))
+                        tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'))
+                if epoch > 10 and epoch % 10 == 0:
+                    if model_args.untie_encoder:
+                        os.makedirs(training_args.output_dir, exist_ok=True)
+                        model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder' + str(epoch)), params=jax_utils.unreplicate(state.params).q_params)
+                        model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder' + str(epoch)), params=jax_utils.unreplicate(state.params).p_params)
+                        tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder' + str(epoch)))
+                        tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder' + str(epoch)))
                 train_metrics = []
 
         epochs.write(
