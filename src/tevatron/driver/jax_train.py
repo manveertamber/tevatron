@@ -22,7 +22,7 @@ from transformers import (
 
 from tevatron.arguments import ModelArguments, DataArguments, TevatronTrainingArguments
 from tevatron.tevax.training import TiedParams, RetrieverTrainState, retriever_train_step, grad_cache_train_step, \
-    DualParams
+    DualParams, calculate_loss
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,7 @@ def main():
         data_files = None
 
     train_dataset = datasets.load_dataset("json", data_files=data_args.dataset_name, cache_dir=model_args.cache_dir)['train']
+    eval_dataset = datasets.load_dataset("json", data_files=data_args.eval_dataset_name, cache_dir=model_args.cache_dir)['train']
 
     def tokenize_train(example):
         tokenize = partial(tokenizer, return_attention_mask=False, return_token_type_ids=False, padding=False,
@@ -114,6 +115,17 @@ def main():
         desc="Running tokenizer on train dataset",
     )
     train_data = train_data.filter(
+        function=lambda data: len(data["pos_psgs_input_ids"]) >= 1 and \
+                              len(data["neg_psgs_input_ids"]) >= data_args.train_n_passages-1, num_proc=64
+    )
+
+    eval_data = eval_dataset.map(
+        tokenize_train,
+        batched=False,
+        num_proc=data_args.dataset_proc_num,
+        desc="Running tokenizer on eval dataset",
+    )
+    eval_data = eval_data.filter(
         function=lambda data: len(data["pos_psgs_input_ids"]) >= 1 and \
                               len(data["neg_psgs_input_ids"]) >= data_args.train_n_passages-1, num_proc=64
     )
@@ -149,6 +161,7 @@ def main():
                 tokenizer.pad(dd, max_length=data_args.p_max_len, padding='max_length', return_tensors='np'))
 
     train_dataset = TrainDataset(train_data, data_args.train_n_passages, tokenizer)
+    eval_dataset = TrainDataset(eval_data, data_args.train_n_passages, tokenizer)
 
     def create_learning_rate_fn(
             train_ds_size: int, train_batch_size: int, num_train_epochs: int, num_warmup_steps: int,
@@ -218,6 +231,23 @@ def main():
             "device"
         )
 
+    p_eval_step = jax.pmap(
+            calculate_loss,
+            "device"
+    )
+
+    def eval_step(state, batch):
+    # Determine the accuracy
+        loss = p_eval_step(state, *batch)
+        return loss
+
+    def eval_model(state, data_loader):
+        all_losses = []
+        for batch in data_loader:
+            loss = eval_step(state, batch)
+            all_losses.append(loss)
+        return sum(all_losses)/len(all_losses)
+
     state = jax_utils.replicate(state)
     rng = jax.random.PRNGKey(training_args.seed)
     dropout_rngs = jax.random.split(rng, jax.local_device_count())
@@ -244,6 +274,20 @@ def main():
 
     train_metrics = []
     lowest_loss = 100
+
+
+    eval_steps = (len(eval_dataset)) // 4 // 256
+    eval_batch_idx = list(range(len(eval_dataset)))
+    random.shuffle(eval_batch_idx)
+    eval_batch_idx = jnp.array(eval_batch_idx)
+    eval_batch_idx = eval_batch_idx[: eval_steps * 256]
+    eval_batch_idx = eval_batch_idx.reshape((eval_steps, 256)).tolist()
+    
+    eval_loader = prefetch_to_device(iter(DataLoader(
+        IterableTrain(eval_dataset, eval_batch_idx, 1),
+        num_workers=32, prefetch_factor=256, batch_size=None, collate_fn=lambda v: v)
+    ), 2)
+    
     for epoch in tqdm(range(num_epochs), desc=f"Epoch ... (1/{num_epochs})", position=0):
         # ======================== Training ================================
         # Create sampling rng
@@ -272,13 +316,17 @@ def main():
 
             if cur_step % training_args.logging_steps == 0 and cur_step > 0:
                 train_metrics = get_metrics(train_metrics)
+
+                eval_loss = eval_model(state, eval_loader)
+                eval_loss = sum(eval_loss) / len(eval_loss)
                 print(
                     f"Step... ({cur_step} | Loss: {train_metrics['loss'].mean()},"
                     f" Learning Rate: {linear_decay_lr_schedule_fn(cur_step)})",
+                    f"Eval Loss: {eval_loss})",
                     flush=True,
                 )
-                if train_metrics['loss'].mean() < lowest_loss and epoch > 5:
-                    lowest_loss = train_metrics['loss'].mean()
+                if eval_loss < lowest_loss and epoch > 5:
+                    lowest_loss = eval_loss
                     if model_args.untie_encoder:
                         os.makedirs(training_args.output_dir, exist_ok=True)
                         model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best' ), params=jax_utils.unreplicate(state.params).q_params)

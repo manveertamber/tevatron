@@ -50,6 +50,10 @@ class DualParams(PyTreeNode):
 class RetrieverTrainState(TrainState):
     params: Union[TiedParams, DualParams]
 
+def calculate_loss(state, queries, passages, axis='device'):
+    q_reps = state.apply_fn(**queries, params=state.params.q_params)[0][:, 0, :]
+    p_reps = state.apply_fn(**passages, params=state.params.p_params)[0][:, 0, :]
+    return jnp.mean(p_contrastive_loss(q_reps, p_reps, axis=axis))
 
 def retriever_train_step(state, queries, passages, dropout_rng, axis='device'):
     q_dropout_rng, p_dropout_rng, new_dropout_rng = jax.random.split(dropout_rng, 3)
