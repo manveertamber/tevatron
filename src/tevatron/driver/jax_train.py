@@ -276,17 +276,7 @@ def main():
     lowest_loss = 100
 
 
-    eval_steps = (len(eval_dataset)) // 4 // 256
-    eval_batch_idx = list(range(len(eval_dataset)))
-    random.shuffle(eval_batch_idx)
-    eval_batch_idx = jnp.array(eval_batch_idx)
-    eval_batch_idx = eval_batch_idx[: eval_steps * 256]
-    eval_batch_idx = eval_batch_idx.reshape((eval_steps, 256)).tolist()
     
-    eval_loader = prefetch_to_device(iter(DataLoader(
-        IterableTrain(eval_dataset, eval_batch_idx, 1),
-        num_workers=32, prefetch_factor=256, batch_size=None, collate_fn=lambda v: v)
-    ), 2)
     
     for epoch in tqdm(range(num_epochs), desc=f"Epoch ... (1/{num_epochs})", position=0):
         # ======================== Training ================================
@@ -316,6 +306,19 @@ def main():
 
             if cur_step % training_args.logging_steps == 0 and cur_step > 0:
                 train_metrics = get_metrics(train_metrics)
+
+
+                eval_steps = (len(eval_dataset)) // 4 // 256
+                eval_batch_idx = list(range(len(eval_dataset)))
+                random.shuffle(eval_batch_idx)
+                eval_batch_idx = jnp.array(eval_batch_idx)
+                eval_batch_idx = eval_batch_idx[: eval_steps * 256]
+                eval_batch_idx = eval_batch_idx.reshape((eval_steps, 256)).tolist()
+                
+                eval_loader = prefetch_to_device(iter(DataLoader(
+                    IterableTrain(eval_dataset, eval_batch_idx, 1),
+                    num_workers=32, prefetch_factor=256, batch_size=None, collate_fn=lambda v: v)
+                ), 2)
 
                 eval_loss = eval_model(state, eval_loader)
                 eval_loss = sum(eval_loss) / len(eval_loss)
