@@ -50,7 +50,10 @@ class DataArguments:
         default=None, metadata={"help": "Path to train directory"}
     )
     dataset_name: str = field(
-        default=None, metadata={"help": "huggingface dataset name"}
+        default=None, metadata={"help": "train dataset name"}
+    )
+    eval_dataset_name: str = field(
+        default=None, metadata={"help": "eval dataset name"}
     )
     passage_field_separator: str = field(default=' ')
     dataset_proc_num: int = field(

@@ -332,7 +332,8 @@ def main():
                         model.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best' ), params=jax_utils.unreplicate(state.params).q_params)
                         model.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'), params=jax_utils.unreplicate(state.params).p_params)
                         with open(str(training_args.output_dir) + "/best_epoch.txt", "w") as f:
-                            f.write(str(epoch))
+                            f.write("EPOCH: " + str(epoch) + "\n")
+                            f.write("VAL LOSS: " + str(eval_loss) + "\n")
                         tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'query_encoder_best'))
                         tokenizer.save_pretrained(os.path.join(training_args.output_dir, 'passage_encoder_best'))
                 if epoch > 10 and epoch % 10 == 0:
