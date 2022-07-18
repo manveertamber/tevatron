@@ -144,8 +144,9 @@ def main():
             q = example['query_input_ids']
 
             pp = example['pos_psgs_input_ids']
-            p = pp[(hash(42) + epoch) % len(pp)]
-
+            #p = pp[(hash(42) + epoch) % len(pp)]
+            p = pp[0]
+            
             nn = example['neg_psgs_input_ids']
             off = epoch * (self.group_size - 1) % len(nn)
             random.Random(hash(42)).shuffle(nn)
